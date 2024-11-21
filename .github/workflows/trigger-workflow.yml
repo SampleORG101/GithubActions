@@ -1,36 +1,94 @@
-name: Trigger Tasks with Approval
+name: Trigger Databricks Workflows
 
 on:
   workflow_dispatch:
     inputs:
-      param1:
-        description: "Parameter for Task 1"
+      system:
+        description: "System"
         required: true
-      param2:
-        description: "Parameter for Task 2"
+      region:
+        description: "Region"
+        required: true
+      plant:
+        description: "Plant"
+        required: true
+      table_list:
+        description: "Table List"
+        required: true
+      ingestion_layer:
+        description: "Ingestion Layer"
+        required: true
+      from_env:
+        description: "Source Environment"
+        required: true
+      to_env:
+        description: "Target Environment"
+        required: true
+      operation_type:
+        description: "Operation Type (CLONE, CREATE, CLONE-CREATE)"
+        required: true
+      clone_job_id:
+        description: "Databricks Job ID for CLONE operation"
+        required: true
+      create_job_id:
+        description: "Databricks Job ID for CREATE operation"
         required: true
 
 jobs:
-  request-approval:
+  validate-params:
     runs-on: ubuntu-latest
     steps:
-      - name: Request Manual Approval
-        uses: fjogeleit/approval-action@v2
-        with:
-          reviewers: "group1,group2"
+      - name: Validate Inputs
+        run: |
+          echo "Validating input parameters..."
+          if [[ "${{ github.event.inputs.operation_type }}" != "CLONE" && \
+                "${{ github.event.inputs.operation_type }}" != "CREATE" && \
+                "${{ github.event.inputs.operation_type }}" != "CLONE-CREATE" ]]; then
+            echo "Invalid operation_type: ${{ github.event.inputs.operation_type }}. Must be one of: CLONE, CREATE, CLONE-CREATE."
+            exit 1
+          fi
+          echo "All inputs are valid."
 
-  trigger-tasks:
-    needs: request-approval
+  clone-or-create:
+    needs: validate-params
     runs-on: ubuntu-latest
+    environment: Prod
     steps:
-      - name: Trigger Task in Workspace 1
+      - name: Set Up Databricks Workflow Parameters
+        id: setup-params
         run: |
-          curl -X POST "https://api.workspace1.com/task" \
-          -H "Authorization: Bearer ${{ secrets.WORKSPACE1_TOKEN }}" \
-          -d '{"param1": "${{ github.event.inputs.param1 }}"}'
+          echo "Setting up parameters for Databricks Workflow..."
+          PARAMS=$(jq -n \
+            --arg system "${{ github.event.inputs.system }}" \
+            --arg region "${{ github.event.inputs.region }}" \
+            --arg plant "${{ github.event.inputs.plant }}" \
+            --arg table_list "${{ github.event.inputs.table_list }}" \
+            --arg ingestion_layer "${{ github.event.inputs.ingestion_layer }}" \
+            --arg from_env "${{ github.event.inputs.from_env }}" \
+            --arg to_env "${{ github.event.inputs.to_env }}" \
+            '{system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env}')
+          echo "params=$PARAMS" >> $GITHUB_ENV
 
-      - name: Trigger Task in Workspace 2
+      - name: Trigger Databricks Workflow for CLONE
+        if: startsWith(github.event.inputs.operation_type, 'CLONE')
         run: |
-          curl -X POST "https://api.workspace2.com/task" \
-          -H "Authorization: Bearer ${{ secrets.WORKSPACE2_TOKEN }}" \
-          -d '{"param2": "${{ github.event.inputs.param2 }}"}'
+          echo "Triggering Databricks Workflow for CLONE..."
+          curl -X POST "https://${{ secrets[github.event.inputs.from_env | upper + '_DATABRICKS_INSTANCE'] }}/api/2.1/jobs/run-now" \
+          -H "Authorization: Bearer ${{ secrets[github.event.inputs.from_env | upper + '_DATABRICKS_TOKEN'] }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "job_id": '${{ secrets[github.event.inputs.to_env | upper + '_job_id'] }}',
+            "notebook_params": '"$PARAMS"'
+          }'
+
+      - name: Trigger Databricks Workflow for CREATE
+        if: github.event.inputs.operation_type == 'CREATE' || github.event.inputs.operation_type == 'CLONE-CREATE'
+        run: |
+          echo "Triggering Databricks Workflow for CREATE..."
+          curl -X POST "https://${{ secrets[github.event.inputs.to_env | upper + '_DATABRICKS_INSTANCE'] }}/api/2.1/jobs/run-now" \
+          -H "Authorization: Bearer ${{ secrets[github.event.inputs.to_env | upper + '_DATABRICKS_TOKEN'] }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "job_id": '${{ secrets[github.event.inputs.to_env | upper + '_job_id'] }}',
+            "notebook_params": '"$PARAMS"'
+          }'
