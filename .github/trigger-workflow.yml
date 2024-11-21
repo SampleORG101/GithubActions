@@ -1,0 +1,36 @@
+name: Trigger Tasks with Approval
+
+on:
+  workflow_dispatch:
+    inputs:
+      param1:
+        description: "Parameter for Task 1"
+        required: true
+      param2:
+        description: "Parameter for Task 2"
+        required: true
+
+jobs:
+  request-approval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request Manual Approval
+        uses: fjogeleit/approval-action@v2
+        with:
+          reviewers: "group1,group2"
+
+  trigger-tasks:
+    needs: request-approval
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Task in Workspace 1
+        run: |
+          curl -X POST "https://api.workspace1.com/task" \
+          -H "Authorization: Bearer ${{ secrets.WORKSPACE1_TOKEN }}" \
+          -d '{"param1": "${{ github.event.inputs.param1 }}"}'
+
+      - name: Trigger Task in Workspace 2
+        run: |
+          curl -X POST "https://api.workspace2.com/task" \
+          -H "Authorization: Bearer ${{ secrets.WORKSPACE2_TOKEN }}" \
+          -d '{"param2": "${{ github.event.inputs.param2 }}"}'
