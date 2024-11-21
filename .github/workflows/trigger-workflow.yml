@@ -48,6 +48,26 @@ jobs:
     runs-on: ubuntu-latest
     environment: Prod
     steps:
+      - name: Set Up Environment Variables
+        id: setup-env
+        run: |
+          echo "Setting up environment variables..."
+          FROM_ENV=$(echo "${{ github.event.inputs.from_env }}" | tr '[:lower:]' '[:upper:]')
+          TO_ENV=$(echo "${{ github.event.inputs.to_env }}" | tr '[:lower:]' '[:upper:]')
+          TO_Workspace_Instance=$(echo "${TO_ENV}_DATABRICKS_INSTANCE")
+          FROM_Workspace_Instance=$(echo "${FROM_ENV}_DATABRICKS_INSTANCE")
+          TO_Workspace_TOKEN=$(echo "${TO_ENV}_DATABRICKS_TOKEN")
+          FROM_Workspace_TOKEN=$(echo "${FROM_ENV}_DATABRICKS_TOKEN")
+          TO_Job_ID=$(echo "${TO_ENV}_job_id")
+          FROM_Job_ID=$(echo "${FROM_ENV}_job_id")
+
+          echo "TO_Workspace_Instance=$TO_Workspace_Instance" >> $GITHUB_ENV
+          echo "FROM_Workspace_Instance=$FROM_Workspace_Instance" >> $GITHUB_ENV
+          echo "TO_Workspace_TOKEN=$TO_Workspace_TOKEN" >> $GITHUB_ENV
+          echo "FROM_Workspace_TOKEN=$FROM_Workspace_TOKEN" >> $GITHUB_ENV
+          echo "TO_Job_ID=$TO_Job_ID" >> $GITHUB_ENV
+          echo "FROM_Job_ID=$FROM_Job_ID" >> $GITHUB_ENV
+
       - name: Set Up Databricks Workflow Parameters
         id: setup-params
         run: |
@@ -67,11 +87,11 @@ jobs:
         if: startsWith(github.event.inputs.operation_type, 'CLONE')
         run: |
           echo "Triggering Databricks Workflow for CLONE..."
-          curl -X POST "https://${{ secrets[github.event.inputs.from_env + '_DATABRICKS_INSTANCE'] }}/api/2.1/jobs/run-now" \
-          -H "Authorization: Bearer ${{ secrets[github.event.inputs.from_env + '_DATABRICKS_TOKEN'] }}" \
+          curl -X POST "https://${{ secrets[env.FROM_Workspace_Instance] }}/api/2.1/jobs/run-now" \
+          -H "Authorization: Bearer ${{ secrets[env.FROM_Workspace_TOKEN] }}" \
           -H "Content-Type: application/json" \
           -d '{
-            "job_id": '${{ secrets[github.event.inputs.to_env + '_job_id'] }}',
+            "job_id": '${{ secrets[env.FROM_Job_ID] }}',
             "notebook_params": '"$PARAMS"'
           }'
 
@@ -79,10 +99,10 @@ jobs:
         if: github.event.inputs.operation_type == 'CREATE' || github.event.inputs.operation_type == 'CLONE-CREATE'
         run: |
           echo "Triggering Databricks Workflow for CREATE..."
-          curl -X POST "https://${{ secrets[github.event.inputs.to_env + '_DATABRICKS_INSTANCE'] }}/api/2.1/jobs/run-now" \
-          -H "Authorization: Bearer ${{ secrets[github.event.inputs.to_env + '_DATABRICKS_TOKEN'] }}" \
+          curl -X POST "https://${{ secrets[env.TO_Workspace_Instance] }}/api/2.1/jobs/run-now" \
+          -H "Authorization: Bearer ${{ secrets[env.TO_Workspace_TOKEN] }}" \
           -H "Content-Type: application/json" \
           -d '{
-            "job_id": '${{ secrets[github.event.inputs.to_env + '_job_id'] }}',
+            "job_id": '${{ secrets[env.TO_Job_ID] }}',
             "notebook_params": '"$PARAMS"'
           }'
