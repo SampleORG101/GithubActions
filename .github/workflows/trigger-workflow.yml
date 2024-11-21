@@ -27,12 +27,6 @@ on:
       operation_type:
         description: "Operation Type (CLONE, CREATE, CLONE-CREATE)"
         required: true
-      clone_job_id:
-        description: "Databricks Job ID for CLONE operation"
-        required: true
-      create_job_id:
-        description: "Databricks Job ID for CREATE operation"
-        required: true
 
 jobs:
   validate-params:
