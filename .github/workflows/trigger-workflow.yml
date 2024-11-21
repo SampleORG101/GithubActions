@@ -42,6 +42,28 @@ jobs:
             exit 1
           fi
           echo "All inputs are valid."
+      - name: Create Env Variable for Input PARAMS
+        run: |
+          echo "Setting up environment variables..."
+          SYSTEM=$(echo "${{ github.event.inputs.system }}" | tr '[:lower:]' '[:upper:]')
+          REGION=$(echo "${{ github.event.inputs.region }}" | tr '[:lower:]' '[:upper:]')
+          PLANT=$(echo "${{ github.event.inputs.plant }}" | tr '[:lower:]' '[:upper:]')
+          TABLE_LIST=$(echo "${{ github.event.inputs.table_list }}" | tr '[:lower:]' '[:upper:]')
+          INGESTION_LAYER=$(echo "${{ github.event.inputs.ingestion_layer }}" | tr '[:lower:]' '[:upper:]')
+          FROM_ENV=$(echo "${{ github.event.inputs.from_env }}" | tr '[:lower:]' '[:upper:]')
+          TO_ENV=$(echo "${{ github.event.inputs.to_env }}" | tr '[:lower:]' '[:upper:]')
+          OP_TYPE=$(echo "${{ github.event.inputs.operation_type }}" | tr '[:lower:]' '[:upper:]')
+
+          echo SYSTEM=$SYSTEM >> $GITHUB_ENV
+          echo REGION=$REGION >> $GITHUB_ENV
+          echo PLANT=$PLANT >> $GITHUB_ENV
+          echo TABLE_LIST=$TABLE_LIST >> $GITHUB_ENV
+          echo INGESTION_LAYER=$INGESTION_LAYER >> $GITHUB_ENV
+          echo FROM_ENV=$FROM_ENV >> $GITHUB_ENV
+          echo TO_ENV=$TO_ENV >> $GITHUB_ENV
+          echo OP_TYPE=$OP_TYPE >> $GITHUB_ENV
+          
+          echo "ENV variables successfully created for Input Params"
 
   clone-or-create:
     needs: validate-params
@@ -52,14 +74,12 @@ jobs:
         id: setup-env
         run: |
           echo "Setting up environment variables..."
-          FROM_ENV=$(echo "${{ github.event.inputs.from_env }}" | tr '[:lower:]' '[:upper:]')
-          TO_ENV=$(echo "${{ github.event.inputs.to_env }}" | tr '[:lower:]' '[:upper:]')
-          TO_Workspace_Instance=$(echo "${TO_ENV}_DATABRICKS_INSTANCE")
-          FROM_Workspace_Instance=$(echo "${FROM_ENV}_DATABRICKS_INSTANCE")
-          TO_Workspace_TOKEN=$(echo "${TO_ENV}_DATABRICKS_TOKEN")
-          FROM_Workspace_TOKEN=$(echo "${FROM_ENV}_DATABRICKS_TOKEN")
-          TO_Job_ID=$(echo "${TO_ENV}_job_id")
-          FROM_Job_ID=$(echo "${FROM_ENV}_job_id")
+          TO_Workspace_Instance="${TO_ENV}_DATABRICKS_INSTANCE"
+          FROM_Workspace_Instance="${FROM_ENV}_DATABRICKS_INSTANCE"
+          TO_Workspace_TOKEN="${TO_ENV}_DATABRICKS_TOKEN"
+          FROM_Workspace_TOKEN="${FROM_ENV}_DATABRICKS_TOKEN"
+          TO_Job_ID="${TO_ENV}_job_id"
+          FROM_Job_ID="${FROM_ENV}_job_id"
 
           echo "TO_Workspace_Instance=$TO_Workspace_Instance" >> $GITHUB_ENV
           echo "FROM_Workspace_Instance=$FROM_Workspace_Instance" >> $GITHUB_ENV
@@ -73,14 +93,15 @@ jobs:
         run: |
           echo "Setting up parameters for Databricks Workflow..."
           PARAMS=$(jq -n \
-            --arg system "${{ github.event.inputs.system }}" \
-            --arg region "${{ github.event.inputs.region }}" \
-            --arg plant "${{ github.event.inputs.plant }}" \
-            --arg table_list "${{ github.event.inputs.table_list }}" \
-            --arg ingestion_layer "${{ github.event.inputs.ingestion_layer }}" \
-            --arg from_env "${{ github.event.inputs.from_env }}" \
-            --arg to_env "${{ github.event.inputs.to_env }}" \
-            '{system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env}')
+            --arg system "$SYSTEM" \
+            --arg region "$REGION" \
+            --arg plant "$PLANT" \
+            --arg table_list "$TABLE_LIST" \
+            --arg ingestion_layer "$INGESTION_LAYER" \
+            --arg from_env "$FROM_ENV" \
+            --arg to_env "$TO_ENV" \
+            --arg op_typ "$OP_TYPE"
+            '{system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}')
           echo "params=$PARAMS" >> $GITHUB_ENV
 
       - name: Trigger Databricks Workflow for CLONE
