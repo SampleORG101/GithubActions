@@ -88,21 +88,21 @@ jobs:
           echo "TO_Job_ID=$TO_Job_ID" >> $GITHUB_ENV
           echo "FROM_Job_ID=$FROM_Job_ID" >> $GITHUB_ENV
 
-            - name: Set Up Databricks Workflow Parameters
-              id: setup-params
-              run: |
-                echo "Setting up parameters for Databricks Workflow..."
-                PARAMS=$(jq -n \
-                  --arg system "${{ env.SYSTEM }}" \
-                  --arg region "${{ env.REGION }}" \
-                  --arg plant "${{ env.PLANT }}" \
-                  --arg table_list "${{ env.TABLE_LIST }}" \
-                  --arg ingestion_layer "${{ env.INGESTION_LAYER }}" \
-                  --arg from_env "${{ env.FROM_ENV }}" \
-                  --arg to_env "${{ env.TO_ENV }}" \
-                  --arg op_typ "${{ env.OP_TYPE }}" \
-                  '{system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}')
-                echo "params=$PARAMS" >> $GITHUB_ENV
+      - name: Set Up Databricks Workflow Parameters
+        id: setup-params
+        run: |
+          echo "Setting up parameters for Databricks Workflow..."
+          PARAMS=$(jq -n \
+            --arg system "${{ env.SYSTEM }}" \
+            --arg region "${{ env.REGION }}" \
+            --arg plant "${{ env.PLANT }}" \
+            --arg table_list "${{ env.TABLE_LIST }}" \
+            --arg ingestion_layer "${{ env.INGESTION_LAYER }}" \
+            --arg from_env "${{ env.FROM_ENV }}" \
+            --arg to_env "${{ env.TO_ENV }}" \
+            --arg op_typ "${{ env.OP_TYPE }}" \
+            '{system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}')
+          echo "params=$PARAMS" >> $GITHUB_ENV
 
       - name: Trigger Databricks Workflow for CLONE
         if: startsWith(github.event.inputs.operation_type, 'CLONE')
