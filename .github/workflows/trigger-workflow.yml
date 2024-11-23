@@ -76,12 +76,12 @@ jobs:
       - name: Set Up Environment Variables
         id: setup-env
         run: |
-          echo "TO_Workspace_Instance=${env.TO_ENV}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
-          echo "FROM_Workspace_Instance=${env.FROM_ENV}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
-          echo "TO_Workspace_TOKEN=${env.TO_ENV}_DATABRICKS_TOKEN" >> $GITHUB_ENV
-          echo "FROM_Workspace_TOKEN=${env.FROM_ENV}_DATABRICKS_TOKEN" >> $GITHUB_ENV
-          echo "TO_Job_ID=${env.TO_ENV}_job_id" >> $GITHUB_ENV
-          echo "FROM_Job_ID=${env.FROM_ENV}_job_id" >> $GITHUB_ENV
+          echo "TO_Workspace_Instance=${{ env.TO_ENV }}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
+          echo "FROM_Workspace_Instance=${{ env.FROM_ENV }}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
+          echo "TO_Workspace_TOKEN=${{ env.TO_ENV }}_DATABRICKS_TOKEN" >> $GITHUB_ENV
+          echo "FROM_Workspace_TOKEN=${{ env.FROM_ENV }}_DATABRICKS_TOKEN" >> $GITHUB_ENV
+          echo "TO_Job_ID=${{ env.TO_ENV }}_job_id" >> $GITHUB_ENV
+          echo "FROM_Job_ID=${{ env.FROM_ENV }}_job_id" >> $GITHUB_ENV
           
       - name: Trigger Databricks Workflow for CLONE
         if: startsWith(env.OP_TYPE, 'CLONE')
