@@ -74,8 +74,8 @@ jobs:
         if: startsWith(github.event.inputs.operation_type, 'CLONE')
         run: |
           echo "Triggering Databricks Workflow for CLONE..."
-          curl -X POST "https://${{ secrets[${{ env.FROM_ENV }}_DATABRICKS_INSTANCE] }}/api/2.1/jobs/run-now" \
-          -H "Authorization: Bearer ${{ secrets[${{ env.FROM_ENV }}_DATABRICKS_TOKEN] }}" \
+          curl -X POST "https://${{ secrets[env.FROM_Workspace_Instance] }}/api/2.1/jobs/run-now" \
+          -H "Authorization: Bearer ${{ secrets[env.FROM_Workspace_TOKEN] }}" \
           -H "Content-Type: application/json" \
           -d "$(jq -n \
                 --arg system "${{ env.SYSTEM }}" \
@@ -86,14 +86,14 @@ jobs:
                 --arg from_env "${{ env.FROM_ENV }}" \
                 --arg to_env "${{ env.TO_ENV }}" \
                 --arg op_typ "${{ env.OP_TYPE }}" \
-                '{job_id: '${{ secrets[${{ env.FROM_ENV }}_job_id] }}', notebook_params: {system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}}')"
+                '{job_id: '${{ secrets[env.FROM_Job_ID] }}', notebook_params: {system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}}')"
 
       - name: Trigger Databricks Workflow for CREATE
         if: github.event.inputs.operation_type == 'CREATE' || github.event.inputs.operation_type == 'CLONE-CREATE'
         run: |
           echo "Triggering Databricks Workflow for CREATE..."
-          curl -X POST "https://${{ secrets[${{ env.TO_ENV }}_DATABRICKS_INSTANCE] }}/api/2.1/jobs/run-now" \
-          -H "Authorization: Bearer ${{ secrets[${{ env.TO_ENV }}_DATABRICKS_TOKEN] }}" \
+          curl -X POST "https://${{ secrets[env.TO_Workspace_Instance] }}/api/2.1/jobs/run-now" \
+          -H "Authorization: Bearer ${{ secrets[env.TO_Workspace_TOKEN] }}" \
           -H "Content-Type: application/json" \
           -d "$(jq -n \
                 --arg system "${{ env.SYSTEM }}" \
@@ -104,4 +104,4 @@ jobs:
                 --arg from_env "${{ env.FROM_ENV }}" \
                 --arg to_env "${{ env.TO_ENV }}" \
                 --arg op_typ "${{ env.OP_TYPE }}" \
-                '{job_id: '${{ secrets[${{ env.TO_ENV }}_job_id] }}', notebook_params: {system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}}')"
+                '{job_id: '${{ secrets[env.TO_Job_ID] }}', notebook_params: {system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}}')"
