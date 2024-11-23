@@ -28,36 +28,19 @@ on:
         description: "Operation Type (CLONE, CREATE, CLONE-CREATE)"
         required: true
 
-jobs:
-  validate-params:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Validate Inputs
-        run: |
-          echo "Validating input parameters..."
-          if [[ "${{ github.event.inputs.operation_type }}" != "CLONE" && \
-                "${{ github.event.inputs.operation_type }}" != "CREATE" && \
-                "${{ github.event.inputs.operation_type }}" != "CLONE-CREATE" ]]; then
-            echo "Invalid operation_type: ${{ github.event.inputs.operation_type }}. Must be one of: CLONE, CREATE, CLONE-CREATE."
-            exit 1
-          fi
-          echo "All inputs are valid."
-      - name: Create Environment Variables
-        run: |
-          echo "Setting up environment variables..."
-          echo "SYSTEM=${{ github.event.inputs.system }}" >> $GITHUB_ENV
-          echo "REGION=${{ github.event.inputs.region }}" >> $GITHUB_ENV
-          echo "PLANT=${{ github.event.inputs.plant }}" >> $GITHUB_ENV
-          echo "TABLE_LIST=${{ github.event.inputs.table_list }}" >> $GITHUB_ENV
-          echo "INGESTION_LAYER=${{ github.event.inputs.ingestion_layer }}" >> $GITHUB_ENV
-          echo "FROM_ENV=${{ github.event.inputs.from_env }}" >> $GITHUB_ENV
-          echo "TO_ENV=${{ github.event.inputs.to_env }}" >> $GITHUB_ENV
-          echo "OP_TYPE=${{ github.event.inputs.operation_type }}" >> $GITHUB_ENV
+env:  # Define environment variables at the workflow level for Input-params
+  SYSTEM: ${{ github.event.inputs.system }}
+  REGION: ${{ github.event.inputs.region }}
+  PLANT: ${{ github.event.inputs.plant }}
+  TABLE_LIST: ${{ github.event.inputs.table_list }}
+  INGESTION_LAYER: ${{ github.event.inputs.ingestion_layer }}
+  FROM_ENV: ${{ github.event.inputs.from_env }}
+  TO_ENV: ${{ github.event.inputs.to_env }}
+  OP_TYPE: ${{ github.event.inputs.operation_type }}
 
-  clone-or-create:
-    needs: validate-params
+jobs:
+  debug-params:
     runs-on: ubuntu-latest
-    environment: Prod
     steps:
       - name: Debug Environment Variables
         run: |
@@ -70,8 +53,38 @@ jobs:
           echo "TO_ENV=${{ env.TO_ENV }}"
           echo "OP_TYPE=${{ env.OP_TYPE }}"
 
+  validate-params:
+    needs: debug-params
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Inputs
+        run: |
+          echo "Validating input parameters..."
+          if [[ "${{ env.OP_TYPE }}" != "CLONE" && \
+                "${{ env.OP_TYPE }}" != "CREATE" && \
+                "${{ env.OP_TYPE }}" != "CLONE-CREATE" ]]; then
+            echo "Invalid operation_type: ${{ env.OP_TYPE }}. Must be one of: CLONE, CREATE, CLONE-CREATE."
+            exit 1
+          fi
+          echo "All inputs are valid."
+
+  clone-or-create:
+    needs: validate-params
+    runs-on: ubuntu-latest
+    environment: Prod
+    steps:
+      - name: Set Up Environment Variables
+        id: setup-env
+        run: |
+          echo "TO_Workspace_Instance=${env.TO_ENV}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
+          echo "FROM_Workspace_Instance=${env.FROM_ENV}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
+          echo "TO_Workspace_TOKEN=${env.TO_ENV}_DATABRICKS_TOKEN" >> $GITHUB_ENV
+          echo "FROM_Workspace_TOKEN=${env.FROM_ENV}_DATABRICKS_TOKEN" >> $GITHUB_ENV
+          echo "TO_Job_ID=${env.TO_ENV}_job_id" >> $GITHUB_ENV
+          echo "FROM_Job_ID=${env.FROM_ENV}_job_id" >> $GITHUB_ENV
+          
       - name: Trigger Databricks Workflow for CLONE
-        if: startsWith(github.event.inputs.operation_type, 'CLONE')
+        if: startsWith(env.OP_TYPE, 'CLONE')
         run: |
           echo "Triggering Databricks Workflow for CLONE..."
           curl -X POST "https://${{ secrets[env.FROM_Workspace_Instance] }}/api/2.1/jobs/run-now" \
@@ -89,7 +102,7 @@ jobs:
                 '{job_id: '${{ secrets[env.FROM_Job_ID] }}', notebook_params: {system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}}')"
 
       - name: Trigger Databricks Workflow for CREATE
-        if: github.event.inputs.operation_type == 'CREATE' || github.event.inputs.operation_type == 'CLONE-CREATE'
+        if: env.OP_TYPE == 'CREATE' || env.OP_TYPE == 'CLONE-CREATE'
         run: |
           echo "Triggering Databricks Workflow for CREATE..."
           curl -X POST "https://${{ secrets[env.TO_Workspace_Instance] }}/api/2.1/jobs/run-now" \
