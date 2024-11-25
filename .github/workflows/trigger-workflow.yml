@@ -29,14 +29,14 @@ on:
         required: true
 
 env:
-  SYSTEM: ${{ github.event.inputs.SYSTEM }} | tr '[:lower:]' '[:upper:]' 
-  REGION: ${{ github.event.inputs.REGION }} | tr '[:lower:]' '[:upper:]' 
-  PLANT: ${{ github.event.inputs.PLANT }} | tr '[:lower:]' '[:upper:]' 
-  TABLE_LIST: ${{ github.event.inputs.TABLE_LIST }} | tr '[:lower:]' '[:upper:]' 
-  INGESTION_LAYER: ${{ github.event.inputs.INGESTION_LAYER }} | tr '[:lower:]' '[:upper:]' 
-  FROM_ENV: ${{ github.event.inputs.FROM_ENV }} | tr '[:lower:]' '[:upper:]' 
-  TO_ENV: ${{ github.event.inputs.TO_ENV }} | tr '[:lower:]' '[:upper:]' 
-  OPERATION_TYPE: ${{ github.event.inputs.OPERATION_TYPE }} | tr '[:lower:]' '[:upper:]' 
+  SYSTEM: ${{ github.event.inputs.SYSTEM }}
+  REGION: ${{ github.event.inputs.REGION }}
+  PLANT: ${{ github.event.inputs.PLANT }}
+  TABLE_LIST: ${{ github.event.inputs.TABLE_LIST }}
+  INGESTION_LAYER: ${{ github.event.inputs.INGESTION_LAYER }}
+  FROM_ENV: ${{ github.event.inputs.FROM_ENV }}
+  TO_ENV: ${{ github.event.inputs.TO_ENV }}
+  OPERATION_TYPE: ${{ github.event.inputs.OPERATION_TYPE }}
 
 jobs:
   debug-params:
