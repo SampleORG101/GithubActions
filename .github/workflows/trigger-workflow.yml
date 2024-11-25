@@ -89,17 +89,32 @@ jobs:
     environment: Prod
     steps:
       - name: Trigger Databricks Workflow for CLONE
-        if: env.OPERATION_TYPE == 'CLONE'
+        if: env.OPERATION_TYPE == 'CLONE' || env.OPERATION_TYPE == 'CLONE-CREATE'
         run: |
           echo "Triggering Databricks Workflow for CLONE..."
-          databricks jobs run-now \
-            --job-id "${{ secrets.FROM_JOB_ID }}" \
-            --notebook-params '{"system": "${{ env.SYSTEM }}", "region": "${{ env.REGION }}", "plant": "${{ env.PLANT }}", "table_list": "${{ env.TABLE_LIST }}", "ingestion_layer": "${{ env.INGESTION_LAYER }}", "from_env": "${{ env.FROM_ENV }}", "to_env": "${{ env.TO_ENV }}", "operation_type": "CLONE"}'
-
-      - name: Trigger Databricks Workflow for CREATE
-        if: env.OPERATION_TYPE == 'CREATE' || env.OPERATION_TYPE == 'CLONE-CREATE'
-        run: |
-          echo "Triggering Databricks Workflow for CREATE..."
-          databricks jobs run-now \
-            --job-id "${{ secrets.TO_JOB_ID }}" \
-            --notebook-params '{"system": "${{ env.SYSTEM }}", "region": "${{ env.REGION }}", "plant": "${{ env.PLANT }}", "table_list": "${{ env.TABLE_LIST }}", "ingestion_layer": "${{ env.INGESTION_LAYER }}", "from_env": "${{ env.FROM_ENV }}", "to_env": "${{ env.TO_ENV }}", "operation_type": "CREATE"}'
+          curl -X POST "https://${{ secrets.FROM_Workspace_Instance }}/api/2.1/jobs/run-now" \
+            -H "Authorization: Bearer ${{ secrets.FROM_Workspace_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+                  "job_id": "${{ secrets.FROM_JOB_ID }}",
+                  "notebook_params": {
+                    "system": "${{ env.SYSTEM }}",
+                    "region": "${{ env.REGION }}",
+                    "plant": "${{ env.PLANT }}",
+                    "table_list": "${{ env.TABLE_LIST }}",
+                    "ingestion_layer": "${{ env.INGESTION_LAYER }}",
+                    "from_env": "${{ env.FROM_ENV }}",
+                    "to_env": "${{ env.TO_ENV }}",
+                    "operation_type": "CLONE"
+                  }
+               }'
+            
+      # - name: Trigger Databricks Workflow for CREATE
+      #   if: env.OPERATION_TYPE == 'CREATE' || env.OPERATION_TYPE == 'CLONE-CREATE'
+      #   run: |
+      #     echo "Triggering Databricks Workflow for CREATE..."
+      #     curl -X POST "https://${{ secrets[env.TO_Workspace_Instance] }}/api/2.1/jobs/run-now" \
+      #     -H "Authorization: Bearer ${{ secrets[env.TO_Workspace_TOKEN] }}" \
+      #     -H "Content-Type: application/json" \
+      #     -d --job-id "${{ secrets.TO_JOB_ID }}" \
+      #       --notebook-params '{"system": "${{ env.SYSTEM }}", "region": "${{ env.REGION }}", "plant": "${{ env.PLANT }}", "table_list": "${{ env.TABLE_LIST }}", "ingestion_layer": "${{ env.INGESTION_LAYER }}", "from_env": "${{ env.FROM_ENV }}", "to_env": "${{ env.TO_ENV }}", "operation_type": "CREATE"}'
