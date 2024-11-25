@@ -3,40 +3,40 @@ name: Trigger Databricks Workflows
 on:
   workflow_dispatch:
     inputs:
-      system:
+      SYSTEM:
         description: "System"
         required: true
-      region:
+      REGION:
         description: "Region"
         required: true
-      plant:
+      PLANT:
         description: "Plant"
         required: true
-      table_list:
+      TABLE_LIST:
         description: "Table List"
         required: true
-      ingestion_layer:
+      INGESTION_LAYER:
         description: "Ingestion Layer"
         required: true
-      from_env:
+      FROM_ENV:
         description: "Source Environment"
         required: true
-      to_env:
+      TO_ENV:
         description: "Target Environment"
         required: true
-      operation_type:
+      OPERATION_TYPE:
         description: "Operation Type (CLONE, CREATE, CLONE-CREATE)"
         required: true
 
-env:  # Define environment variables at the workflow level for Input-params
-  SYSTEM: ${{ github.event.inputs.system }}
-  REGION: ${{ github.event.inputs.region }}
-  PLANT: ${{ github.event.inputs.plant }}
-  TABLE_LIST: ${{ github.event.inputs.table_list }}
-  INGESTION_LAYER: ${{ github.event.inputs.ingestion_layer }}
-  FROM_ENV: ${{ github.event.inputs.from_env }}
-  TO_ENV: ${{ github.event.inputs.to_env }}
-  OP_TYPE: ${{ github.event.inputs.operation_type }}
+env:
+  SYSTEM: ${{ github.event.inputs.SYSTEM }} | tr '[:lower:]' '[:upper:]' 
+  REGION: ${{ github.event.inputs.REGION }} | tr '[:lower:]' '[:upper:]' 
+  PLANT: ${{ github.event.inputs.PLANT }} | tr '[:lower:]' '[:upper:]' 
+  TABLE_LIST: ${{ github.event.inputs.TABLE_LIST }} | tr '[:lower:]' '[:upper:]' 
+  INGESTION_LAYER: ${{ github.event.inputs.INGESTION_LAYER }} | tr '[:lower:]' '[:upper:]' 
+  FROM_ENV: ${{ github.event.inputs.FROM_ENV }} | tr '[:lower:]' '[:upper:]' 
+  TO_ENV: ${{ github.event.inputs.TO_ENV }} | tr '[:lower:]' '[:upper:]' 
+  OPERATION_TYPE: ${{ github.event.inputs.OPERATION_TYPE }} | tr '[:lower:]' '[:upper:]' 
 
 jobs:
   debug-params:
@@ -51,7 +51,7 @@ jobs:
           echo "INGESTION_LAYER=${{ env.INGESTION_LAYER }}"
           echo "FROM_ENV=${{ env.FROM_ENV }}"
           echo "TO_ENV=${{ env.TO_ENV }}"
-          echo "OP_TYPE=${{ env.OP_TYPE }}"
+          echo "OPERATION_TYPE=${{ env.OPERATION_TYPE }}"
 
   validate-params:
     needs: debug-params
@@ -60,61 +60,46 @@ jobs:
       - name: Validate Inputs
         run: |
           echo "Validating input parameters..."
-          if [[ "${{ env.OP_TYPE }}" != "CLONE" && \
-                "${{ env.OP_TYPE }}" != "CREATE" && \
-                "${{ env.OP_TYPE }}" != "CLONE-CREATE" ]]; then
-            echo "Invalid operation_type: ${{ env.OP_TYPE }}. Must be one of: CLONE, CREATE, CLONE-CREATE."
+          if [[ "${{ env.OPERATION_TYPE }}" != "CLONE" && \
+                "${{ env.OPERATION_TYPE }}" != "CREATE" && \
+                "${{ env.OPERATION_TYPE }}" != "CLONE-CREATE" ]]; then
+            echo "Invalid OPERATION_TYPE: ${{ env.OPERATION_TYPE }}. Must be one of: CLONE, CREATE, CLONE-CREATE."
             exit 1
           fi
           echo "All inputs are valid."
 
-  clone-or-create:
+  prepare-params:
     needs: validate-params
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare Environment Variables
+        id: prepare-env
+        run: |
+          echo "FROM_WORKSPACE_INSTANCE=${{ env.FROM_ENV }}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
+          echo "TO_WORKSPACE_INSTANCE=${{ env.TO_ENV }}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
+          echo "FROM_WORKSPACE_TOKEN=${{ env.FROM_ENV }}_DATABRICKS_TOKEN" >> $GITHUB_ENV
+          echo "TO_WORKSPACE_TOKEN=${{ env.TO_ENV }}_DATABRICKS_TOKEN" >> $GITHUB_ENV
+          echo "FROM_JOB_ID=${{ env.FROM_ENV }}_JOB_ID" >> $GITHUB_ENV
+          echo "TO_JOB_ID=${{ env.TO_ENV }}_JOB_ID" >> $GITHUB_ENV
+          echo "Prepared parameters successfully!"
+
+  clone-or-create:
+    needs: prepare-params
     runs-on: ubuntu-latest
     environment: Prod
     steps:
-      - name: Set Up Environment Variables
-        id: setup-env
-        run: |
-          echo "TO_Workspace_Instance=${{ env.TO_ENV }}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
-          echo "FROM_Workspace_Instance=${{ env.FROM_ENV }}_DATABRICKS_INSTANCE" >> $GITHUB_ENV
-          echo "TO_Workspace_TOKEN=${{ env.TO_ENV }}_DATABRICKS_TOKEN" >> $GITHUB_ENV
-          echo "FROM_Workspace_TOKEN=${{ env.FROM_ENV }}_DATABRICKS_TOKEN" >> $GITHUB_ENV
-          echo "TO_Job_ID=${{ env.TO_ENV }}_job_id" >> $GITHUB_ENV
-          echo "FROM_Job_ID=${{ env.FROM_ENV }}_job_id" >> $GITHUB_ENV
-          
       - name: Trigger Databricks Workflow for CLONE
-        if: startsWith(env.OP_TYPE, 'CLONE')
+        if: env.OPERATION_TYPE == 'CLONE'
         run: |
           echo "Triggering Databricks Workflow for CLONE..."
-          curl -X POST "https://${{ secrets[env.FROM_Workspace_Instance] }}/api/2.1/jobs/run-now" \
-          -H "Authorization: Bearer ${{ secrets[env.FROM_Workspace_TOKEN] }}" \
-          -H "Content-Type: application/json" \
-          -d "$(jq -n \
-                --arg system "${{ env.SYSTEM }}" \
-                --arg region "${{ env.REGION }}" \
-                --arg plant "${{ env.PLANT }}" \
-                --arg table_list "${{ env.TABLE_LIST }}" \
-                --arg ingestion_layer "${{ env.INGESTION_LAYER }}" \
-                --arg from_env "${{ env.FROM_ENV }}" \
-                --arg to_env "${{ env.TO_ENV }}" \
-                --arg op_typ "${{ env.OP_TYPE }}" \
-                '{job_id: '${{ secrets[env.FROM_Job_ID] }}', notebook_params: {system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}}')"
+          databricks jobs run-now \
+            --job-id "${{ secrets.FROM_JOB_ID }}" \
+            --notebook-params '{"system": "${{ env.SYSTEM }}", "region": "${{ env.REGION }}", "plant": "${{ env.PLANT }}", "table_list": "${{ env.TABLE_LIST }}", "ingestion_layer": "${{ env.INGESTION_LAYER }}", "from_env": "${{ env.FROM_ENV }}", "to_env": "${{ env.TO_ENV }}", "operation_type": "CLONE"}'
 
       - name: Trigger Databricks Workflow for CREATE
-        if: env.OP_TYPE == 'CREATE' || env.OP_TYPE == 'CLONE-CREATE'
+        if: env.OPERATION_TYPE == 'CREATE' || env.OPERATION_TYPE == 'CLONE-CREATE'
         run: |
           echo "Triggering Databricks Workflow for CREATE..."
-          curl -X POST "https://${{ secrets[env.TO_Workspace_Instance] }}/api/2.1/jobs/run-now" \
-          -H "Authorization: Bearer ${{ secrets[env.TO_Workspace_TOKEN] }}" \
-          -H "Content-Type: application/json" \
-          -d "$(jq -n \
-                --arg system "${{ env.SYSTEM }}" \
-                --arg region "${{ env.REGION }}" \
-                --arg plant "${{ env.PLANT }}" \
-                --arg table_list "${{ env.TABLE_LIST }}" \
-                --arg ingestion_layer "${{ env.INGESTION_LAYER }}" \
-                --arg from_env "${{ env.FROM_ENV }}" \
-                --arg to_env "${{ env.TO_ENV }}" \
-                --arg op_typ "${{ env.OP_TYPE }}" \
-                '{job_id: '${{ secrets[env.TO_Job_ID] }}', notebook_params: {system: $system, region: $region, plant: $plant, table_list: $table_list, ingestion_layer: $ingestion_layer, from_env: $from_env, to_env: $to_env, operation_type: $op_typ}}')"
+          databricks jobs run-now \
+            --job-id "${{ secrets.TO_JOB_ID }}" \
+            --notebook-params '{"system": "${{ env.SYSTEM }}", "region": "${{ env.REGION }}", "plant": "${{ env.PLANT }}", "table_list": "${{ env.TABLE_LIST }}", "ingestion_layer": "${{ env.INGESTION_LAYER }}", "from_env": "${{ env.FROM_ENV }}", "to_env": "${{ env.TO_ENV }}", "operation_type": "CREATE"}'
